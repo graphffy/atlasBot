@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
 type ClientData struct {
 	Date           string `json:"date"`
-	TimeFrom       string `json:"timeFrom"`
-	TimeTo         string `json:"timeTo"`
+	TimeFrom       int    `json:"timeFrom"`
+	TimeTo         int    `json:"timeTo"`
 	CityFrom       string `json:"cityFrom"`
 	CityTo         string `json:"cityTo"`
 	SearchTimeout  string `json:"searchTimeout"`
@@ -63,17 +64,30 @@ func Client(data ClientData) {
 		fmt.Println(err)
 	}
 
-	fmt.Printf("Trips count: %d\n", len(result.Trips))
-	for _, v := range result.Trips {
-		fmt.Println(v)
-	}
+	r := checker(result, data)
 
+	fmt.Println(r)
+
+}
+
+func checker(s SearchResponse, d ClientData) SearchResponse {
+	var result SearchResponse
+	for _, v := range s.Trips {
+		if v.Seats != 0 {
+			houres, _ := strconv.Atoi(v.Time[11:13])
+			if houres >= d.TimeFrom && houres < d.TimeTo {
+				result.Trips = append(result.Trips, v)
+			}
+		}
+
+	}
+	return result
 }
 
 func main() {
 	http.HandleFunc("/", Handler)
 
-	err := http.ListenAndServe(":9004", nil)
+	err := http.ListenAndServe(":9008", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
