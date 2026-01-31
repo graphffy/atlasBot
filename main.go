@@ -15,8 +15,8 @@ type ClientData struct {
 	TimeTo         int    `json:"timeTo"`
 	CityFrom       string `json:"cityFrom"`
 	CityTo         string `json:"cityTo"`
-	SearchTimeout  string `json:"searchTimeout"`
-	RequestTimeout string `json:"requestTimeout"`
+	SearchTimeout  int    `json:"searchTimeout"`
+	RequestTimeout int    `json:"requestTimeout"`
 	CityFromId     string
 	CityToId       string
 }
@@ -53,20 +53,33 @@ func Client(data ClientData) {
 	src := "https://atlasbus.by/api/search?from_id=" + data.CityFromId + "&to_id=" + data.CityToId +
 		"&calendar_width=30&date=" + data.Date + "&passengers=1"
 
-	page, err := client.Get(src)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer page.Body.Close()
+	func() {
+		for {
+			var timeStump time.Duration
+			if timeStump < (time.Duration(data.SearchTimeout) * time.Second) {
+				timeStump += time.Duration(data.SearchTimeout)
+				page, err := client.Get(src)
+				if err != nil {
+					fmt.Println(err)
+				}
+				defer page.Body.Close()
 
-	var result SearchResponse
-	if err := json.NewDecoder(page.Body).Decode(&result); err != nil {
-		fmt.Println(err)
-	}
+				var result SearchResponse
+				if err := json.NewDecoder(page.Body).Decode(&result); err != nil {
+					fmt.Println(err)
+				}
 
-	r := checker(result, data)
+				r := checker(result, data)
 
-	fmt.Println(r)
+				fmt.Println(r)
+
+				time.Sleep(time.Duration(data.RequestTimeout) * time.Second)
+			} else {
+				return
+			}
+
+		}
+	}()
 
 }
 
