@@ -41,46 +41,63 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	request.CityFromId = "c625144"
 	request.CityToId = "c625665"
 
-	go Client(request)
+	Client(request, w)
 
 }
 
-func Client(data ClientData) {
-	client := &http.Client{
-		Timeout: time.Second * 5,
+func Client(data ClientData, w http.ResponseWriter) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		return
 	}
 
-	src := "https://atlasbus.by/api/search?from_id=" + data.CityFromId + "&to_id=" + data.CityToId +
-		"&calendar_width=30&date=" + data.Date + "&passengers=1"
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
 
-	func() {
-		for {
-			var timeStump time.Duration
-			if timeStump < (time.Duration(data.SearchTimeout) * time.Second) {
-				timeStump += time.Duration(data.SearchTimeout)
-				page, err := client.Get(src)
-				if err != nil {
-					fmt.Println(err)
-				}
-				defer page.Body.Close()
+	client := &http.Client{Timeout: 5 * time.Second}
 
-				var result SearchResponse
-				if err := json.NewDecoder(page.Body).Decode(&result); err != nil {
-					fmt.Println(err)
-				}
+	url := "https://atlasbus.by/api/search" +
+		"?from_id=" + data.CityFromId +
+		"&to_id=" + data.CityToId +
+		"&calendar_width=30" +
+		"&date=" + data.Date +
+		"&passengers=1"
 
-				r := checker(result, data)
+	end := time.After(time.Duration(data.SearchTimeout) * time.Second)
 
-				fmt.Println(r)
-
-				time.Sleep(time.Duration(data.RequestTimeout) * time.Second)
-			} else {
+	for {
+		select {
+		case <-end:
+			return
+		default:
+			resp, err := client.Get(url)
+			if err != nil {
+				fmt.Println(err)
 				return
 			}
 
-		}
-	}()
+			var result SearchResponse
+			err = json.NewDecoder(resp.Body).Decode(&result)
+			resp.Body.Close()
 
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			filtered := checker(result, data)
+
+			fmt.Fprintf(w, "data: ")
+			json.NewEncoder(w).Encode(filtered)
+			fmt.Fprint(w, "\n\n")
+
+			flusher.Flush()
+
+			time.Sleep(time.Duration(data.RequestTimeout) * time.Second)
+		}
+	}
 }
 
 func checker(s SearchResponse, d ClientData) SearchResponse {
@@ -100,7 +117,7 @@ func checker(s SearchResponse, d ClientData) SearchResponse {
 func main() {
 	http.HandleFunc("/", Handler)
 
-	err := http.ListenAndServe(":9008", nil)
+	err := http.ListenAndServe(":9003", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
