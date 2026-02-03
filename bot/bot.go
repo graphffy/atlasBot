@@ -1,5 +1,9 @@
 package bot
 
-func main() {
+import (
+	"fmt"
+)
 
+func main() {
+	fmt.Println("")
 }
