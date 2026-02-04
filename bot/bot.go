@@ -19,23 +19,19 @@ func botStart() {
 
 	updates, _ := bot.UpdatesViaLongPolling(ctx, nil)
 
-	for {
-		select {
-		case upd := <-updates:
-			if upd.Message != nil {
-				chatId := tu.ID(upd.Message.Chat.ID)
+	for upd := range updates {
+		if upd.Message != nil {
+			chatId := tu.ID(upd.Message.Chat.ID)
 
-				_, _ = bot.CopyMessage(ctx,
-					tu.CopyMessage(
-						chatId,
-						chatId,
-						upd.Message.MessageID,
-					),
-				)
-			}
-		case <-ctx.Done():
-			break
+			_, _ = bot.CopyMessage(ctx,
+				tu.CopyMessage(
+					chatId,
+					chatId,
+					upd.Message.MessageID,
+				),
+			)
 		}
+
 	}
 
 }
