@@ -1,9 +1,12 @@
 package bot
 
 import (
+	"atlasBot/structs"
 	"context"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -68,5 +71,23 @@ func botStart() {
 		}
 
 	}
+
+}
+
+func parseInput(str string) structs.Request {
+
+	var res structs.Request
+
+	data := strings.Split(str, "/")
+
+	res.Date = data[0]
+	res.TimeFrom, _ = strconv.Atoi(data[1])
+	res.TimeTo, _ = strconv.Atoi(data[2])
+	res.CityFrom = data[3]
+	res.CityTo = data[4]
+	res.SearchTimeout, _ = strconv.Atoi(data[5])
+	res.RequestTimeout, _ = strconv.Atoi(data[6])
+
+	return res
 
 }
